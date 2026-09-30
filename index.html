@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Absensi & Rekap Gaji Karyawan</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui, -apple-system, sans-serif;background:#0f172a;color:#f8fafc}
+  .app{max-width:480px;margin:auto;padding:16px}
+  h1{font-size:20px;text-align:center;margin:8px 0 2px;color:#38bdf8;letter-spacing:1px}
+  .date{text-align:center;color:#94a3b8;font-size:13px;margin-bottom:14px}
+  
+  /* Card Modern Dark untuk Aplikasi */
+  .card{background:#1e293b;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 4px 20px #00000040;border:1px solid #334155}
+  label{font-size:12px;font-weight:600;color:#93c5fd;display:block;margin-bottom:4px}
+  select, input{width:100%;padding:10px;border:1px solid #334155;background:#0f172a;color:#f8fafc;border-radius:10px;font-size:14px;margin-bottom:10px;outline:none}
+  select:focus, input:focus{border-color:#38bdf8}
+  
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .buttons{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px}
+  button{border:0;border-radius:10px;padding:12px;font-size:12px;font-weight:bold;cursor:pointer;transition:0.2s}
+  button:active{transform:scale(0.98)}
+  
+  .masuk{background:#065f46;color:#a7f3d0}
+  .setengah{background:#854d0e;color:#fef08a}
+  .libur{background:#334155;color:#cbd5e1}
+  
+  .btn-action{width:100%;background:#2563eb;color:white;margin-top:8px;padding:12px;border-radius:10px}
+  .btn-green{background:#059669}
+  .status{margin-top:12px;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px;font-size:13px;line-height:1.5;color:#e2e8f0}
+  
+  /* Tampilan Nota Struk TEMA HITAM PUTIH KLASIK */
+  .receipt-wrapper{background:#e2e8f0;padding:12px;border-radius:12px;margin-top:12px;border:1px solid #cbd5e1}
+  .receipt{background:#ffffff;padding:20px 16px;font-family:'Courier New', Courier, monospace;color:#000000;font-size:13px;line-height:1.4;border:1px solid #000000;border-radius:4px;box-shadow:0 4px 6px #0000001a}
+  .receipt-title{text-align:center;font-weight:bold;font-size:15px;margin-bottom:4px;color:#000000}
+  .receipt-subtitle{text-align:center;font-weight:bold;font-size:12px;margin-bottom:10px;color:#000000}
+  .divider{border-top:1px dashed #000000;margin:8px 0}
+  .double-divider{border-top:2px double #000000;margin:8px 0}
+  .receipt-row{display:flex;justify-content:space-between;margin:4px 0;color:#000000}
+  .receipt-row b{font-weight:bold}
+  
+  details{font-size:12px;color:#94a3b8}
+  summary{cursor:pointer;font-weight:600;padding:4px 0;color:#38bdf8}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>ABSENSI KARYAWAN</h1>
+  <div class="date" id="today"></div>
+
+  <!-- Pengaturan Nama & Gaji -->
+  <div class="card">
+    <details>
+      <summary>⚙️ Pengaturan Nama & Gaji Karyawan</summary>
+      <div style="margin-top:10px">
+        <div class="grid-2">
+          <div>
+            <label>Nama Karyawan 1</label>
+            <input type="text" id="nameEmp1" onchange="updateSettings()">
+          </div>
+          <div>
+            <label>Gaji/Hari (Rp)</label>
+            <input type="number" id="rateEmp1" step="5000" onchange="updateSettings()">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label>Nama Karyawan 2</label>
+            <input type="text" id="nameEmp2" onchange="updateSettings()">
+          </div>
+          <div>
+            <label>Gaji/Hari (Rp)</label>
+            <input type="number" id="rateEmp2" step="5000" onchange="updateSettings()">
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- Menu Riwayat Mingguan -->
+  <div class="card">
+    <details id="historyDetails">
+      <summary>📜 Riwayat Rekap Mingguan</summary>
+      <div style="margin-top:10px">
+        <label for="historySelect">Pilih Periode Minggu</label>
+        <select id="historySelect" onchange="loadHistoryWeek()">
+          <option value="">-- Tampilkan Minggu Ini --</option>
+        </select>
+      </div>
+    </details>
+  </div>
+
+  <!-- Form Absensi -->
+  <div class="card">
+    <label for="absenDate">Tanggal Absen / Revisi</label>
+    <input type="date" id="absenDate" onchange="render()">
+
+    <label for="employeeSelect">Pilih Karyawan</label>
+    <select id="employeeSelect" onchange="render()"></select>
+
+    <div class="buttons">
+      <button class="masuk" onclick="absen('masuk')">MASUK</button>
+      <button class="setengah" onclick="absen('setengah')">SETENGAH HARI</button>
+      <button class="libur" onclick="absen('libur')">LIBUR</button>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <!-- Dashboard Nota Rekap -->
+  <div class="card">
+    <h2 style="font-size:16px;margin:0 0 10px;color:#38bdf8;">Nota Rekap Gaji Mingguan (Senin-Sabtu)</h2>
+    
+    <div style="margin-bottom:12px">
+      <label for="uangTerpakaiGlobal">Uang Terpakai / Operasional (Rp)</label>
+      <input type="number" id="uangTerpakaiGlobal" placeholder="0" step="1000" onchange="saveUangTerpakaiGlobal()">
+    </div>
+
+    <div class="receipt-wrapper">
+      <div class="receipt" id="receiptContainer">
+        <div class="receipt-title">REKAP GAJI MINGGUAN</div>
+        <div class="receipt-subtitle">KARYAWAN</div>
+        <div class="double-divider"></div>
+        <div style="font-size:11px;color:#000000;" id="receiptPeriod">Periode: -</div>
+        <div class="divider"></div>
+
+        <div id="receiptBody"></div>
+
+        <div class="divider"></div>
+        <div class="receipt-row">
+          <span>Subtotal Gaji:</span>
+          <span id="receiptTotalGaji">Rp0</span>
+        </div>
+        <div class="receipt-row">
+          <span>Uang Terpakai:</span>
+          <span id="receiptUangTerpakai">+Rp0</span>
+        </div>
+
+        <div class="double-divider"></div>
+        <div class="receipt-row" style="font-size:14px;">
+          <b>TOTAL DIBAYARKAN:</b>
+          <b id="receiptGrandTotal">Rp0</b>
+        </div>
+        <div class="double-divider"></div>
+        <div style="text-align:center;font-size:11px;margin-top:8px;color:#000000;">--- Terima Kasih ---</div>
+      </div>
+    </div>
+
+    <button class="btn-action btn-green" onclick="downloadReceipt()">🖼️ Simpan Sebagai Gambar (PNG)</button>
+    <button class="btn-action" onclick="copyRekapText()">📋 Salin Teks Rekap</button>
+  </div>
+</div>
+
+<script>
+const KEY_DATA = "absensi_data_v12";
+const KEY_CONFIG = "absensi_config_v12";
+const KEY_EXPENSE = "absensi_expense_v12";
+
+let config = JSON.parse(localStorage.getItem(KEY_CONFIG) || JSON.stringify({
+  emp1: { name: "Budi Santoso", rate: 125000 },
+  emp2: { name: "Siti Rahmah", rate: 100000 }
+}));
+
+let data = JSON.parse(localStorage.getItem(KEY_DATA) || "{}");
+let globalExpenses = JSON.parse(localStorage.getItem(KEY_EXPENSE) || "{}");
+
+function saveConfig(){ localStorage.setItem(KEY_CONFIG, JSON.stringify(config)); }
+function saveData(){ localStorage.setItem(KEY_DATA, JSON.stringify(data)); }
+function saveExpense(){ localStorage.setItem(KEY_EXPENSE, JSON.stringify(globalExpenses)); }
+
+function pad(n){ return String(n).padStart(2,"0"); }
+function dateKey(d=new Date()){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function rupiah(n){ return "Rp" + Math.round(n).toLocaleString("id-ID"); }
+
+function initDatePicker(){
+  let today = new Date();
+  document.getElementById("absenDate").value = dateKey(today);
+}
+
+function getSelectedDateKey(){
+  let val = document.getElementById("absenDate").value;
+  return val ? val : dateKey();
+}
+
+function loadSettingsUI(){
+  document.getElementById("nameEmp1").value = config.emp1.name;
+  document.getElementById("rateEmp1").value = config.emp1.rate;
+  document.getElementById("nameEmp2").value = config.emp2.name;
+  document.getElementById("rateEmp2").value = config.emp2.rate;
+  updateSelectOptions();
+}
+
+function updateSelectOptions(){
+  let select = document.getElementById("employeeSelect");
+  let currentVal = select.value;
+  select.innerHTML = `
+    <option value="emp1">${config.emp1.name}</option>
+    <option value="emp2">${config.emp2.name}</option>
+  `;
+  if(currentVal) select.value = currentVal;
+}
+
+function updateSettings(){
+  config.emp1.name = document.getElementById("nameEmp1").value || "Karyawan 1";
+  config.emp1.rate = Number(document.getElementById("rateEmp1").value) || 0;
+  config.emp2.name = document.getElementById("nameEmp2").value || "Karyawan 2";
+  config.emp2.rate = Number(document.getElementById("rateEmp2").value) || 0;
+  saveConfig();
+  updateSelectOptions();
+  render();
+}
+
+function showDate(){
+  document.getElementById("today").textContent =
+    new Date().toLocaleDateString("id-ID",{weekday:"long", day:"numeric", month:"long", year:"numeric"});
+}
+
+function getSelectedEmpKey(){
+  return document.getElementById("employeeSelect").value || "emp1";
+}
+
+function getDayData(empKey, k){
+  if(!data[empKey]) data[empKey] = {};
+  if(!data[empKey][k]) data[empKey][k] = {status:"Belum Absen", nilai:0};
+  return data[empKey][k];
+}
+
+function absen(type){
+  let empKey = getSelectedEmpKey();
+  let k = getSelectedDateKey();
+  let x = getDayData(empKey, k);
+  
+  if(type === "masuk"){ x.status = "Masuk Penuh"; x.nilai = 1; }
+  if(type === "setengah"){ x.status = "Setengah Hari"; x.nilai = 0.5; }
+  if(type === "libur"){ x.status = "Libur"; x.nilai = 0; }
+  
+  saveData(); 
+  updateHistoryDropdown();
+  render();
+}
+
+function saveUangTerpakaiGlobal(){
+  let keys = weekKeys();
+  let weekId = keys[0];
+  globalExpenses[weekId] = Number(document.getElementById("uangTerpakaiGlobal").value) || 0;
+  saveExpense();
+  render();
+}
+
+function weekKeys(customDateStr){
+  let refDate = new Date(customDateStr || getSelectedDateKey());
+  let day = refDate.getDay();
+  let diff = day === 0 ? -6 : 1 - day;
+  let monday = new Date(refDate); 
+  monday.setDate(refDate.getDate() + diff);
+  
+  let arr = [];
+  for(let i = 0; i < 6; i++){
+    let d = new Date(monday); 
+    d.setDate(monday.getDate() + i);
+    arr.push(dateKey(d));
+  }
+  return arr;
+}
+
+function getPeriodString(keys){
+  let start = new Date(keys[0]);
+  let end = new Date(keys[5]);
+  let opt = { day: 'numeric', month: 'short', year: 'numeric' };
+  return `${start.toLocaleDateString('id-ID', opt)} - ${end.toLocaleDateString('id-ID', opt)}`;
+}
+
+function updateHistoryDropdown(){
+  let select = document.getElementById("historySelect");
+  let allDates = new Set();
+  
+  ["emp1", "emp2"].forEach(k => {
+    if(data[k]) Object.keys(data[k]).forEach(d => allDates.add(d));
+  });
+
+  let weeks = new Map();
+  allDates.forEach(dStr => {
+    let wKeys = weekKeys(dStr);
+    let mondayKey = wKeys[0];
+    if(!weeks.has(mondayKey)){
+      weeks.set(mondayKey, getPeriodString(wKeys));
+    }
+  });
+
+  let sortedMondays = Array.from(weeks.keys()).sort().reverse();
+
+  select.innerHTML = `<option value="">-- Tampilkan Minggu Ini --</option>`;
+  sortedMondays.forEach(mKey => {
+    select.innerHTML += `<option value="${mKey}">Periode: ${weeks.get(mKey)}</option>`;
+  });
+}
+
+function loadHistoryWeek(){
+  let val = document.getElementById("historySelect").value;
+  if(val){
+    document.getElementById("absenDate").value = val;
+  } else {
+    initDatePicker();
+  }
+  render();
+}
+
+function render(){
+  let empKey = getSelectedEmpKey();
+  let k = getSelectedDateKey();
+  let empName = config[empKey].name;
+  let x = getDayData(empKey, k);
+
+  document.getElementById("status").innerHTML =
+    `<b>Status ${k} (${empName}):</b><br>` +
+    `Status: <b>${x.status}</b>`;
+
+  let keys = weekKeys();
+  let weekId = keys[0];
+  let uangTerpakai = globalExpenses[weekId] || 0;
+  document.getElementById("uangTerpakaiGlobal").value = uangTerpakai || "";
+
+  document.getElementById("receiptPeriod").textContent = "Periode: " + getPeriodString(keys);
+
+  let totalSubtotal = 0;
+  let receiptHtml = "";
+
+  ["emp1", "emp2"].forEach((key, index) => {
+    let emp = config[key];
+    let totalHari = 0;
+    
+    for(let dateK of keys){
+      let item = (data[key] || {})[dateK];
+      if(item){
+        totalHari += Number(item.nilai || 0);
+      }
+    }
+    
+    let subtotalGaji = totalHari * emp.rate;
+    totalSubtotal += subtotalGaji;
+
+    receiptHtml += `
+      ${index > 0 ? '<div class="divider"></div>' : ''}
+      <div style="font-weight:bold;margin-bottom:2px;color:#000000;">${index+1}. ${emp.name.toUpperCase()}</div>
+      <div style="color:#000000;font-size:11px;">Gaji Harian: ${rupiah(emp.rate)}</div>
+      <div class="receipt-row" style="margin-top:4px;">
+        <span>Total Hari Kerja:</span>
+        <span><b>${totalHari} Hari</b></span>
+      </div>
+      <div class="receipt-row">
+        <span>Subtotal Gaji:</span>
+        <span><b>${rupiah(subtotalGaji)}</b></span>
+      </div>
+    `;
+  });
+
+  let grandTotal = totalSubtotal + uangTerpakai;
+
+  document.getElementById("receiptBody").innerHTML = receiptHtml;
+  document.getElementById("receiptTotalGaji").textContent = rupiah(totalSubtotal);
+  document.getElementById("receiptUangTerpakai").textContent = "+" + rupiah(uangTerpakai);
+  document.getElementById("receiptGrandTotal").textContent = rupiah(grandTotal);
+}
+
+function downloadReceipt(){
+  let container = document.getElementById("receiptContainer");
+  html2canvas(container, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+    let link = document.createElement('a');
+    link.download = `rekap-gaji-${getSelectedDateKey()}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  });
+}
+
+function copyRekapText(){
+  let keys = weekKeys();
+  let weekId = keys[0];
+  let uangTerpakai = globalExpenses[weekId] || 0;
+  let totalSubtotal = 0;
+  let text = `=========================\n  REKAP GAJI MINGGUAN  \n=========================\nPeriode: ${getPeriodString(keys)}\n-------------------------\n`;
+
+  ["emp1", "emp2"].forEach((key, index) => {
+    let emp = config[key];
+    let totalHari = 0;
+
+    for(let dateK of keys){
+      let item = (data[key] || {})[dateK];
+      if(item){
+        totalHari += Number(item.nilai || 0);
+      }
+    }
+    let subtotalGaji = totalHari * emp.rate;
+    totalSubtotal += subtotalGaji;
+
+    text += `${index+1}. ${emp.name.toUpperCase()}\n`;
+    text += `   Gaji Harian   : ${rupiah(emp.rate)}\n`;
+    text += `   Total Hari    : ${totalHari} Hari\n`;
+    text += `   Subtotal Gaji : ${rupiah(subtotalGaji)}\n-------------------------\n`;
+  });
+
+  let grandTotal = totalSubtotal + uangTerpakai;
+
+  text += `Subtotal Gaji : ${rupiah(totalSubtotal)}\n`;
+  text += `Uang Terpakai : +${rupiah(uangTerpakai)}\n`;
+  text += `=========================\n`;
+  text += `TOTAL DIBAYARKAN : ${rupiah(grandTotal)}\n=========================`;
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text)
+      .then(() => alert("Teks rekap berhasil disalin!"))
+      .catch(() => showPrompt(text));
+  } else {
+    showPrompt(text);
+  }
+}
+
+function showPrompt(text){
+  window.prompt("Salin teks rekap di bawah ini secara manual:", text);
+}
+
+initDatePicker();
+loadSettingsUI();
+showDate();
+updateHistoryDropdown();
+render();
+</script>
+</body>
+  </html>
+  
